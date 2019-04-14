@@ -1,20 +1,17 @@
-import sys
 import time
 import urllib
 import getpass
 import zipfile
 import os
-import os.path
-import time
 
 from os.path import expanduser
 from urllib.request import urlopen, urlretrieve
 from tempfile import NamedTemporaryFile
 from typing import List, Optional
 
-from node_launcher.constants import BITCOIN_DATA_PATH, BITCOIN_CONF_PATH, TOR_DATA_PATH, \
-    TOR_TORRC_PATH, LND_CONF_PATH , TOR_PATH, TOR_EXE_PATH, OPERATING_SYSTEM, IS_WINDOWS, \
-    IS_MACOS, IS_LINUX, LND_DIR_PATH
+from node_launcher.constants import TOR_PATH, \
+    TOR_EXE_PATH, OPERATING_SYSTEM, IS_WINDOWS, \
+    IS_MACOS, IS_LINUX
 
 
 # FIXME
@@ -22,34 +19,6 @@ import subprocess
 from subprocess import call, Popen, PIPE
 
     
-def edit_bitcoin_conf():
-    print('Node Launcher is preparing your system...')
-    time.sleep(2)
-    print('NOTE: Restart Bitcoin Core and LND after running this script for changes to take effect')
-    time.sleep(2)
-    print('Configruing bitcoin.conf...')
-    f = open(str(BITCOIN_CONF_PATH[OPERATING_SYSTEM]) , 'a')
-    f.write('proxy=127.0.0.1:9050\n')
-    f.write('listen=1\n')
-    f.write('bind=127.0.0.1\n')
-    f.write('debug=tor\n')
-    f.close()
-    time.sleep(2)
-
-def edit_lnd_conf():
-    print('Configuring lnd.conf...')
-    f = open(str(LND_CONF_PATH[OPERATING_SYSTEM]) , 'a')
-    f.write(' \n')
-    f.write('[Application Options]\n')
-    f.write('listen=localhost\n')
-    f.write(' \n')
-    f.write('[tor]\n')
-    f.write('tor.active=1\n')
-    f.write('tor.v3=1\n')
-    f.write('tor.streamisolation=1\n')
-    f.close()
-    time.sleep(2)
-   
 def downloadtor():
     print('Downloading Tor...')
     if IS_WINDOWS:
@@ -119,9 +88,9 @@ def deb_install():
         deb_modify_user()
 
 def installtor():
+    torpath = str(TOR_PATH[OPERATING_SYSTEM])
     if IS_WINDOWS:
         print('Installing Tor...')
-        torpath = str(TOR_PATH[OPERATING_SYSTEM])
         if not os.path.exists(torpath):
             os.makedirs(torpath)
         zip_ref = zipfile.ZipFile(r'tor-win32-0.3.5.7.zip', 'r')
@@ -129,8 +98,8 @@ def installtor():
         zip_ref.close()
     elif IS_MACOS:
         print('Installing Tor...')
+        # TODO see if this below is covered by `torpath` variable
         bash_torpath = expanduser('~/Library/Application\ Support/Tor/')
-        torpath = expanduser('~/Library/Application Support/Tor/')
         if not os.path.exists(torpath):
             os.makedirs(torpath)
         bashcommand_attach = 'hdiutil attach ~/Downloads/TorBrowser-8.0.6-osx64_en-US.dmg'
@@ -144,9 +113,9 @@ def installtor():
 
 def runtor():
     print('Launching Tor...')    
+    path= TOR_EXE_PATH[OPERATING_SYSTEM]
+    cmd = path
     if IS_MACOS:
-        path= TOR_EXE_PATH[OPERATING_SYSTEM]
-        cmd = path
         with NamedTemporaryFile(suffix='-run_tor.command', delete=False) as f:
             f.write(f'#!/bin/sh\n{cmd}\n'.encode('utf-8'))
             f.flush()
@@ -155,8 +124,6 @@ def runtor():
         time.sleep(2)
         print('Tor setup is complete!')
     elif IS_WINDOWS:
-        path = TOR_EXE_PATH[OPERATING_SYSTEM]
-        cmd = path
         from subprocess import DETACHED_PROCESS, CREATE_NEW_PROCESS_GROUP
         with NamedTemporaryFile(suffix='-run_tor.bat', delete=False) as f:
             f.write(cmd.encode('utf-8'))
@@ -169,23 +136,6 @@ def runtor():
         time.sleep(2)
         print('Tor setup is complete!')
         input("Press enter to exit...")
-
-
-def write_torrc():
-    tordatapath = str(TOR_DATA_PATH[OPERATING_SYSTEM])
-    if not os.path.exists(tordatapath):
-        os.makedirs(tordatapath)
-    f = open(str(TOR_TORRC_PATH[OPERATING_SYSTEM]), 'a')
-    f.write(' \n')
-    f.write('ControlPort 9051\n')
-    f.write('CookieAuthentication 1\n')
-    f.write(' \n')
-    f.write('HiddenServiceDir ')
-    f.write(os.path.join(tordatapath, 'bitcoin-service'))
-    f.write('\n')
-    f.write('HiddenServicePort 8333 127.0.0.1:8333\n')
-    f.write('HiddenServicePort 18333 127.0.0.1:18333\n')
-    f.close()
 
 
 
@@ -226,15 +176,11 @@ def run_tor(self):
 
 def launch():
     if IS_MACOS or IS_WINDOWS:
-        edit_bitcoin_conf()
-        edit_lnd_conf()
         downloadtor()
         installtor()
-        write_torrc()
         runtor()
 
     elif IS_LINUX:
-        edit_bitcoin_conf()
         deb_install()
 
 
